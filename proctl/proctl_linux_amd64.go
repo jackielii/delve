@@ -8,6 +8,8 @@ import (
 	"sync"
 	"syscall"
 
+	sys "golang.org/x/sys/unix"
+
 	"github.com/derekparker/delve/dwarf/frame"
 )
 
@@ -78,7 +80,6 @@ func (dbp *DebuggedProcess) LoadInformation() error {
 	wg.Add(2)
 	go dbp.parseDebugFrame(exe, &wg)
 	go dbp.obtainGoSymbols(exe, &wg)
-
 	wg.Wait()
 
 	return nil
@@ -155,4 +156,47 @@ func (dbp *DebuggedProcess) obtainGoSymbols(exe *elf.File, wg *sync.WaitGroup) {
 	}
 
 	dbp.GoSymTable = tab
+}
+
+func trapWait(dbp *DebuggedProcess, pid int) (int, *sys.WaitStatus, error) {
+	for {
+		wpid, status, err := wait(pid, 0)
+		if err != nil {
+			return -1, nil, fmt.Errorf("wait err %s %d", err, pid)
+		}
+		if wpid == 0 {
+			continue
+		}
+		if th, ok := dbp.Threads[wpid]; ok {
+			th.Status = status
+		}
+		if status.Exited() && wpid == dbp.Pid {
+			return -1, status, ProcessExitedError{wpid}
+		}
+		if status.StopSignal() == sys.SIGTRAP && status.TrapCause() == sys.PTRACE_EVENT_CLONE {
+			// A traced thread has cloned a new thread, grab the pid and
+			// add it to our list of traced threads.
+			tid, err := sys.PtraceGetEventMsg(wpid)
+			if err != nil {
+				return -1, nil, fmt.Errorf("could not get event message: %s", err)
+			}
+			err = addNewThread(dbp, wpid, int(tid))
+			if err != nil {
+				return -1, nil, err
+			}
+			continue
+		}
+		if status.StopSignal() == sys.SIGTRAP {
+			return wpid, status, nil
+		}
+		if status.StopSignal() == sys.SIGSTOP && dbp.halt {
+			return -1, nil, ManualStopError{}
+		}
+	}
+}
+
+func wait(pid, options int) (int, *sys.WaitStatus, error) {
+	var status sys.WaitStatus
+	wpid, err := sys.Wait4(pid, &status, sys.WALL|options, nil)
+	return wpid, &status, err
 }

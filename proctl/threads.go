@@ -18,6 +18,7 @@ type ThreadContext struct {
 	Id      int
 	Process *DebuggedProcess
 	Status  *sys.WaitStatus
+	os      *OSSpecificDetails
 }
 
 // An interface for a generic register type. The
@@ -36,7 +37,6 @@ func (thread *ThreadContext) Registers() (Registers, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get registers %s", err)
 	}
-
 	return regs, nil
 }
 
@@ -46,7 +46,6 @@ func (thread *ThreadContext) CurrentPC() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-
 	return regs.PC(), nil
 }
 
@@ -103,7 +102,7 @@ func (thread *ThreadContext) Continue() error {
 		}
 	}
 
-	return sys.PtraceCont(thread.Id, 0)
+	return PtraceCont(thread.Id, 0)
 }
 
 // Single steps this thread a single instruction, ensuring that
@@ -134,7 +133,7 @@ func (thread *ThreadContext) Step() (err error) {
 		}()
 	}
 
-	err = sys.PtraceSingleStep(thread.Id)
+	err = PtraceSingleStep(thread.Id)
 	if err != nil {
 		return fmt.Errorf("step failed: %s", err.Error())
 	}

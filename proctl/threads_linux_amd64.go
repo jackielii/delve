@@ -2,30 +2,15 @@ package proctl
 
 import sys "golang.org/x/sys/unix"
 
-type Regs struct {
-	regs *sys.PtraceRegs
-}
+// Not actually used, but necessary
+// to be defined.
+type OSSpecificDetails interface{}
 
-func (r *Regs) PC() uint64 {
-	return r.regs.PC()
-}
-
-func (r *Regs) SP() uint64 {
-	return r.regs.Rsp
-}
-
-func (r *Regs) SetPC(tid int, pc uint64) error {
-	r.regs.SetPC(pc)
-	return sys.PtraceSetRegs(tid, r.regs)
-}
-
-func registers(tid int) (Registers, error) {
-	var regs sys.PtraceRegs
-	err := sys.PtraceGetRegs(tid, &regs)
-	if err != nil {
-		return nil, err
+func (t *ThreadContext) Halt() error {
+	if stopped(t.Id) {
+		return nil
 	}
-	return &Regs{&regs}, nil
+	return sys.Tgkill(t.Process.Pid, t.Id, sys.SIGSTOP)
 }
 
 func writeMemory(tid int, addr uintptr, data []byte) (int, error) {
@@ -34,8 +19,4 @@ func writeMemory(tid int, addr uintptr, data []byte) (int, error) {
 
 func readMemory(tid int, addr uintptr, data []byte) (int, error) {
 	return sys.PtracePeekData(tid, addr, data)
-}
-
-func clearHardwareBreakpoint(reg, tid int) error {
-	return setHardwareBreakpoint(reg, tid, 0)
 }

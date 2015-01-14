@@ -219,10 +219,7 @@ func (dbp *DebuggedProcess) FindLocation(str string) (uint64, error) {
 func (dbp *DebuggedProcess) RequestManualStop() {
 	dbp.halt = true
 	for _, th := range dbp.Threads {
-		if stopped(th.Id) {
-			continue
-		}
-		sys.Tgkill(dbp.Pid, th.Id, sys.SIGSTOP)
+		th.Halt()
 	}
 	dbp.running = false
 }
@@ -404,37 +401,6 @@ func (pe ProcessExitedError) Error() string {
 	return fmt.Sprintf("process %d has exited", pe.pid)
 }
 
-func trapWait(dbp *DebuggedProcess, pid int) (int, *sys.WaitStatus, error) {
-	for {
-		wpid, status, err := wait(pid, 0)
-		if err != nil {
-			return -1, nil, fmt.Errorf("wait err %s %d", err, pid)
-		}
-		if wpid == 0 {
-			continue
-		}
-		if th, ok := dbp.Threads[wpid]; ok {
-			th.Status = status
-		}
-		if status.Exited() && wpid == dbp.Pid {
-			return -1, status, ProcessExitedError{wpid}
-		}
-		if status.StopSignal() == sys.SIGTRAP && status.TrapCause() == sys.PTRACE_EVENT_CLONE {
-			err = addNewThread(dbp, wpid)
-			if err != nil {
-				return -1, nil, err
-			}
-			continue
-		}
-		if status.StopSignal() == sys.SIGTRAP {
-			return wpid, status, nil
-		}
-		if status.StopSignal() == sys.SIGSTOP && dbp.halt {
-			return -1, nil, ManualStopError{}
-		}
-	}
-}
-
 func handleBreakPoint(dbp *DebuggedProcess, pid int) error {
 	thread := dbp.Threads[pid]
 	if pid != dbp.CurrentThread.Id {
@@ -489,10 +455,7 @@ func stopTheWorld(dbp *DebuggedProcess) error {
 	// are inactive. We send SIGSTOP and ensure all
 	// threads are in in signal-delivery-stop mode.
 	for _, th := range dbp.Threads {
-		if stopped(th.Id) {
-			continue
-		}
-		err := sys.Tgkill(dbp.Pid, th.Id, sys.SIGSTOP)
+		err := th.Halt()
 		if err != nil {
 			return err
 		}
@@ -505,23 +468,17 @@ func stopTheWorld(dbp *DebuggedProcess) error {
 	return nil
 }
 
-func addNewThread(dbp *DebuggedProcess, pid int) error {
-	// A traced thread has cloned a new thread, grab the pid and
-	// add it to our list of traced threads.
-	msg, err := sys.PtraceGetEventMsg(pid)
-	if err != nil {
-		return fmt.Errorf("could not get event message: %s", err)
-	}
-	fmt.Println("new thread spawned", msg)
+func addNewThread(dbp *DebuggedProcess, cloner, cloned int) error {
+	fmt.Println("new thread spawned", cloned)
 
-	_, err = dbp.addThread(int(msg))
+	th, err := dbp.addThread(cloned)
 	if err != nil {
 		return err
 	}
 
-	err = sys.PtraceCont(int(msg), 0)
+	err = th.Continue()
 	if err != nil {
-		return fmt.Errorf("could not continue new thread %d %s", msg, err)
+		return fmt.Errorf("could not continue new thread %d %s", cloned, err)
 	}
 
 	// Here we loop for a while to ensure that the once we continue
@@ -533,21 +490,15 @@ func addNewThread(dbp *DebuggedProcess, pid int) error {
 	// the CPU to emit a breakpoint exception on write to this location
 	// in memory. That way we prevent having to loop, and can be
 	// notified as soon as m->procid is set.
-	th := dbp.Threads[pid]
+	th = dbp.Threads[cloner]
 	for {
 		allm, _ := th.AllM()
 		for _, m := range allm {
-			if m.procid == int(msg) {
+			if m.procid == cloned {
 				// Continue the thread that cloned
-				return sys.PtraceCont(pid, 0)
+				return th.Continue()
 			}
 		}
 		time.Sleep(time.Millisecond)
 	}
-}
-
-func wait(pid, options int) (int, *sys.WaitStatus, error) {
-	var status sys.WaitStatus
-	wpid, err := sys.Wait4(pid, &status, sys.WALL|options, nil)
-	return wpid, &status, err
 }
