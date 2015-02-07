@@ -1,0 +1,3 @@
+#!/bin/sh
+
+go test -c && codesign -s dbg-cert ./proctl.test && ./proctl.test -test.run Step

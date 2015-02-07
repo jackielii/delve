@@ -1,8 +1,6 @@
 package proctl
 
 /*
-#include <stdlib.h>
-#include <stdio.h>
 #include <libproc.h>
 
 static const unsigned char info_plist[]
@@ -32,10 +30,6 @@ findExecutable(int pid) {
 	proc_pidpath(pid, pathbuf, PATH_MAX);
 	return pathbuf;
 }
-
-task_t *
-acquire_mach_task(int tid) {
-}
 */
 import "C"
 import (
@@ -49,21 +43,17 @@ import (
 	sys "golang.org/x/sys/unix"
 )
 
-func machTask(tid int) (C.task_t, error) {
-	return C.acquire_mach_task(C.int(tid))
-}
-
 func (dbp *DebuggedProcess) addThread(tid int) (*ThreadContext, error) {
-	task, err := machTask(tid)
-	if err != nil {
-		return err
-	}
-	dbp.Threads[tid] = &ThreadContext{
+	thread := &ThreadContext{
 		Id:      tid,
 		Process: dbp,
-		os:      &OSSpecificDetails{task: task},
+		os:      new(OSSpecificDetails),
 	}
-	return dbp.Threads[tid], nil
+	dbp.Threads[tid] = thread
+	if err := acquireMachTask(thread); err != nil {
+		return nil, err
+	}
+	return thread, nil
 }
 
 // Finds the executable and then uses it

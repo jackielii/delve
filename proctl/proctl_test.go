@@ -37,9 +37,9 @@ func getRegisters(p *DebuggedProcess, t *testing.T) Registers {
 	return regs
 }
 
-func dataAtAddr(pid int, addr uint64) ([]byte, error) {
+func dataAtAddr(thread *ThreadContext, addr uint64) ([]byte, error) {
 	data := make([]byte, 1)
-	_, err := readMemory(pid, uintptr(addr), data)
+	_, err := readMemory(thread, uintptr(addr), data)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func TestClearBreakPoint(t *testing.T) {
 		bp, err = p.Clear(fn.Entry)
 		assertNoError(err, t, "Clear()")
 
-		data, err := dataAtAddr(p.Pid, bp.Addr)
+		data, err := dataAtAddr(p.CurrentThread, bp.Addr)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -316,7 +316,7 @@ func TestFindReturnAddress(t *testing.T) {
 		addr := uint64(int64(regs.SP()) + ret)
 		data := make([]byte, 8)
 
-		readMemory(p.Pid, uintptr(addr), data)
+		readMemory(p.CurrentThread, uintptr(addr), data)
 		addr = binary.LittleEndian.Uint64(data)
 
 		expected := uint64(0x400fbc)
