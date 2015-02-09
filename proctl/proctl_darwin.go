@@ -148,7 +148,32 @@ func (dbp *DebuggedProcess) findExecutable() (*macho.File, error) {
 
 // TODO(darwin)
 func trapWait(dbp *DebuggedProcess, pid int) (int, *sys.WaitStatus, error) {
-	return 0, nil, fmt.Errorf("trapWait not implemented")
+	var (
+		wpid   int
+		status *sys.WaitStatus
+		err    error
+	)
+
+	for {
+		wpid, status, err = wait(pid, 0)
+		if err != nil {
+			return -1, nil, fmt.Errorf("wait err %s %d", err, pid)
+		}
+		if wpid != 0 {
+			break
+		}
+	}
+
+	if th, ok := dbp.Threads[wpid]; ok {
+		th.Status = status
+	}
+	if status.Exited() && wpid == dbp.Pid {
+		return -1, status, ProcessExitedError{wpid}
+	}
+	if status.StopSignal() == sys.SIGTRAP {
+		return wpid, status, nil
+	}
+	return -1, nil, fmt.Errorf("wait: %s", status.StopSignal())
 }
 
 func wait(pid, options int) (int, *sys.WaitStatus, error) {

@@ -429,6 +429,9 @@ func handleBreakPoint(dbp *DebuggedProcess, pid int) error {
 
 	// Check for hardware breakpoint
 	for _, bp := range dbp.HWBreakPoints {
+		if bp == nil {
+			continue
+		}
 		if bp.Addr == pc {
 			if !bp.temp {
 				stopTheWorld(dbp)

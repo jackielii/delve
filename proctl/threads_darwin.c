@@ -19,6 +19,8 @@ write_memory(mach_port_name_t task, mach_vm_address_t addr, void *d, mach_msg_ty
 
 	kret = mach_vm_write((vm_map_t)task, addr, (vm_offset_t)&data, len);
 	if (kret != KERN_SUCCESS) return -1;
+
+	// TODO(dp) fix protect permissions after writing
 	return 0;
 }
 
