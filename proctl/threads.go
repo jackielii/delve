@@ -33,7 +33,7 @@ type Registers interface {
 
 // Obtains register values from the debugged process.
 func (thread *ThreadContext) Registers() (Registers, error) {
-	regs, err := registers(thread.Id)
+	regs, err := registers(thread)
 	if err != nil {
 		return nil, fmt.Errorf("could not get registers %s", err)
 	}
