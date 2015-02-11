@@ -146,7 +146,6 @@ func (dbp *DebuggedProcess) findExecutable() (*macho.File, error) {
 	return macho.Open(path)
 }
 
-// TODO(darwin)
 func trapWait(dbp *DebuggedProcess, pid int) (int, *sys.WaitStatus, error) {
 	var (
 		wpid   int
@@ -171,6 +170,7 @@ func trapWait(dbp *DebuggedProcess, pid int) (int, *sys.WaitStatus, error) {
 		return -1, status, ProcessExitedError{wpid}
 	}
 	if status.StopSignal() == sys.SIGTRAP {
+		fmt.Println(status.StopSignal())
 		return wpid, status, nil
 	}
 	return -1, nil, fmt.Errorf("wait: %s", status.StopSignal())

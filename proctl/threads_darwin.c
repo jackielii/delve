@@ -47,5 +47,6 @@ get_registers(mach_port_name_t task) {
 	mach_msg_type_number_t stateCount = x86_THREAD_STATE64_COUNT;
 
 	thread_get_state(task, x86_THREAD_STATE64, (thread_state_t)&state, &stateCount);
+	printf("rip %lld\n", state.__rip);
 	return state;
 }
