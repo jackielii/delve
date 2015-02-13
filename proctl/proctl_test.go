@@ -3,7 +3,6 @@ package proctl
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -111,11 +110,10 @@ func TestContinue(t *testing.T) {
 
 func TestBreakPoint(t *testing.T) {
 	withTestProcess("../_fixtures/testprog", t, func(p *DebuggedProcess) {
-		sleepytimefunc := p.GoSymTable.LookupFunc("main.helloworld")
-		sleepyaddr := sleepytimefunc.Entry
-		fmt.Printf("sleepytime addr %#v\n", sleepyaddr)
+		helloworldfunc := p.GoSymTable.LookupFunc("main.helloworld")
+		helloworldaddr := helloworldfunc.Entry
 
-		bp, err := p.Break(sleepyaddr)
+		bp, err := p.Break(helloworldaddr)
 		assertNoError(err, t, "Break()")
 
 		breakpc := bp.Addr
@@ -130,20 +128,6 @@ func TestBreakPoint(t *testing.T) {
 		if pc-1 != breakpc {
 			f, l, _ := p.GoSymTable.PCToLine(pc)
 			t.Fatalf("Break not respected:\nPC:%#v %s:%d\nFN:%#v \n", pc, f, l, breakpc)
-		}
-
-		fmt.Println("STEP")
-		err = p.Step()
-		assertNoError(err, t, "Step()")
-		fmt.Println("STEP")
-
-		pc, err = p.CurrentPC()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if pc == breakpc {
-			t.Fatalf("Step not respected:\nPC:%d\nFN:%d\n", pc, breakpc)
 		}
 	})
 }

@@ -35,14 +35,13 @@ findExecutable(int pid) {
 }
 
 int
-get_task_threads(int tid, task_t task, thread_act_t *thread) {
+get_task_thread(int tid, task_t task, thread_act_t *thread) {
 	int pid;
 	kern_return_t kret;
 	thread_act_array_t list;
 	mach_msg_type_number_t count;
 
 	kret = task_threads(task, &list, &count);
-	printf("count %d\n", count);
 	if (kret != KERN_SUCCESS) return -1;
 	for (int i = 0; i < (int)count; i++) {
 		pid_for_task((mach_port_name_t)task, &pid);
@@ -76,9 +75,8 @@ func (dbp *DebuggedProcess) addThread(tid int) (*ThreadContext, error) {
 	if err := acquireMachTask(thread); err != nil {
 		return nil, err
 	}
-	// TODO(dp) figure out a way to extract the correct thread_t for this thread
 	var th C.thread_act_t
-	ret := C.get_task_threads(C.int(tid), C.task_t(thread.os.task), &th)
+	ret := C.get_task_thread(C.int(tid), C.task_t(thread.os.task), &th)
 	if ret < 0 {
 		return nil, fmt.Errorf("could not get mach thread for %d", tid)
 	}
@@ -205,7 +203,6 @@ func trapWait(dbp *DebuggedProcess, pid int) (int, *sys.WaitStatus, error) {
 		return -1, status, ProcessExitedError{wpid}
 	}
 	if status.StopSignal() == sys.SIGTRAP {
-		fmt.Println(status.StopSignal())
 		return wpid, status, nil
 	}
 	return -1, nil, fmt.Errorf("wait: %s", status.StopSignal())

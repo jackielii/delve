@@ -101,7 +101,6 @@ func (dbp *DebuggedProcess) setBreakpoint(tid int, addr uint64) (*BreakPoint, er
 	if _, err := writeMemory(thread, uintptr(addr), []byte{0xCC}); err != nil {
 		return nil, err
 	}
-	fmt.Printf("bp at %d\n", addr)
 	dbp.BreakPoints[addr] = dbp.newBreakpoint(fn.Name, f, l, addr, originalData)
 	return dbp.BreakPoints[addr], nil
 }

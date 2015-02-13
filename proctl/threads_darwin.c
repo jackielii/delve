@@ -50,7 +50,6 @@ get_registers(mach_port_name_t task) {
 	kret = thread_get_state(task, x86_THREAD_STATE64, (thread_state_t)&state, &stateCount);
 	if (kret != KERN_SUCCESS) printf("SOMETHING WENT WRONG-------------- %d\n", kret);
 	if (kret == KERN_INVALID_ARGUMENT) puts("INAVLID ARGUMENT");
-	printf("count %d\n", stateCount);
 	return state;
 }
 

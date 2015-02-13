@@ -138,10 +138,12 @@ func (thread *ThreadContext) Step() (err error) {
 		return fmt.Errorf("step failed: %s", err.Error())
 	}
 
+	fmt.Println("begin wait")
 	_, _, err = wait(thread.Id, 0)
 	if err != nil {
 		return err
 	}
+	fmt.Println("fin wait")
 
 	return nil
 }

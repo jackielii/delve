@@ -412,7 +412,6 @@ func handleBreakPoint(dbp *DebuggedProcess, pid int) error {
 	if err != nil {
 		return fmt.Errorf("could not get current pc %s", err)
 	}
-	fmt.Printf("PC %#v\n", pc)
 
 	// Check to see if we hit a runtime.breakpoint
 	fn := dbp.GoSymTable.PCToFunc(pc)
@@ -441,7 +440,6 @@ func handleBreakPoint(dbp *DebuggedProcess, pid int) error {
 		}
 	}
 	// Check to see if we have hit a software breakpoint.
-	fmt.Printf("pc %#v minus %#v\n", pc, pc-2953846200)
 	if bp, ok := dbp.BreakPoints[pc-1]; ok {
 		if !bp.temp {
 			return stopTheWorld(dbp)
