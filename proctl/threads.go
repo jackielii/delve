@@ -28,7 +28,7 @@ type ThreadContext struct {
 type Registers interface {
 	PC() uint64
 	SP() uint64
-	SetPC(int, uint64) error
+	SetPC(*ThreadContext, uint64) error
 }
 
 // Obtains register values from the debugged process.
@@ -122,7 +122,7 @@ func (thread *ThreadContext) Step() (err error) {
 		}
 
 		// Reset program counter to our restored instruction.
-		err = regs.SetPC(thread.Id, bp.Addr)
+		err = regs.SetPC(thread, bp.Addr)
 		if err != nil {
 			return fmt.Errorf("could not set registers %s", err)
 		}
@@ -272,7 +272,7 @@ func (thread *ThreadContext) clearTempBreakpoint(pc uint64) error {
 			return err
 		}
 
-		return regs.SetPC(thread.Id, pc)
+		return regs.SetPC(thread, pc)
 	}
 
 	return nil

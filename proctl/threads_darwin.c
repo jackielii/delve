@@ -43,10 +43,27 @@ read_memory(mach_port_name_t task, mach_vm_address_t addr, void *d, mach_msg_typ
 
 x86_thread_state64_t
 get_registers(mach_port_name_t task) {
+	kern_return_t kret;
 	x86_thread_state64_t state;
 	mach_msg_type_number_t stateCount = x86_THREAD_STATE64_COUNT;
 
-	thread_get_state(task, x86_THREAD_STATE64, (thread_state_t)&state, &stateCount);
-	printf("rip %lld\n", state.__rip);
+	kret = thread_get_state(task, x86_THREAD_STATE64, (thread_state_t)&state, &stateCount);
+	if (kret != KERN_SUCCESS) printf("SOMETHING WENT WRONG-------------- %d\n", kret);
+	if (kret == KERN_INVALID_ARGUMENT) puts("INAVLID ARGUMENT");
+	printf("count %d\n", stateCount);
 	return state;
+}
+
+void
+set_pc(thread_act_t task, uint64_t pc) {
+	kern_return_t kret;
+	x86_thread_state64_t state;
+	mach_msg_type_number_t stateCount = x86_THREAD_STATE64_COUNT;
+
+	kret = thread_get_state(task, x86_THREAD_STATE64, (thread_state_t)&state, &stateCount);
+	if (kret != KERN_SUCCESS) puts("get state failed");
+	state.__rip = pc;
+
+	kret = thread_set_state(task, x86_THREAD_STATE64, (thread_state_t)&state, stateCount);
+	if (kret != KERN_SUCCESS) puts("get state failed");
 }

@@ -3,6 +3,7 @@ package proctl
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -112,6 +113,7 @@ func TestBreakPoint(t *testing.T) {
 	withTestProcess("../_fixtures/testprog", t, func(p *DebuggedProcess) {
 		sleepytimefunc := p.GoSymTable.LookupFunc("main.helloworld")
 		sleepyaddr := sleepytimefunc.Entry
+		fmt.Printf("sleepytime addr %#v\n", sleepyaddr)
 
 		bp, err := p.Break(sleepyaddr)
 		assertNoError(err, t, "Break()")
@@ -125,13 +127,15 @@ func TestBreakPoint(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if pc != breakpc {
+		if pc-1 != breakpc {
 			f, l, _ := p.GoSymTable.PCToLine(pc)
 			t.Fatalf("Break not respected:\nPC:%#v %s:%d\nFN:%#v \n", pc, f, l, breakpc)
 		}
 
+		fmt.Println("STEP")
 		err = p.Step()
 		assertNoError(err, t, "Step()")
+		fmt.Println("STEP")
 
 		pc, err = p.CurrentPC()
 		if err != nil {

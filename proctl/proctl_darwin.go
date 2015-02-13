@@ -1,7 +1,10 @@
 package proctl
 
 /*
+#include <stdio.h>
 #include <libproc.h>
+#include <sys/types.h>
+#include <mach/mach.h>
 
 static const unsigned char info_plist[]
 __attribute__ ((section ("__TEXT,__info_plist"),used)) =
@@ -30,6 +33,26 @@ findExecutable(int pid) {
 	proc_pidpath(pid, pathbuf, PATH_MAX);
 	return pathbuf;
 }
+
+int
+get_task_threads(int tid, task_t task, thread_act_t *thread) {
+	int pid;
+	kern_return_t kret;
+	thread_act_array_t list;
+	mach_msg_type_number_t count;
+
+	kret = task_threads(task, &list, &count);
+	printf("count %d\n", count);
+	if (kret != KERN_SUCCESS) return -1;
+	for (int i = 0; i < (int)count; i++) {
+		pid_for_task((mach_port_name_t)task, &pid);
+		if (pid == tid) {
+			*thread = list[i];
+			return 0;
+		}
+	}
+	return -1;
+}
 */
 import "C"
 import (
@@ -53,6 +76,13 @@ func (dbp *DebuggedProcess) addThread(tid int) (*ThreadContext, error) {
 	if err := acquireMachTask(thread); err != nil {
 		return nil, err
 	}
+	// TODO(dp) figure out a way to extract the correct thread_t for this thread
+	var th C.thread_act_t
+	ret := C.get_task_threads(C.int(tid), C.task_t(thread.os.task), &th)
+	if ret < 0 {
+		return nil, fmt.Errorf("could not get mach thread for %d", tid)
+	}
+	thread.os.thread_act = th
 	return thread, nil
 }
 
@@ -72,6 +102,11 @@ func (dbp *DebuggedProcess) LoadInformation() error {
 	if err != nil {
 		return err
 	}
+	data, err := exe.DWARF()
+	if err != nil {
+		return err
+	}
+	dbp.Dwarf = data
 
 	wg.Add(2)
 	go dbp.parseDebugFrame(exe, &wg)

@@ -8,7 +8,8 @@ import (
 )
 
 type OSSpecificDetails struct {
-	task C.mach_port_name_t
+	task       C.mach_port_name_t
+	thread_act C.thread_act_t
 }
 
 func acquireMachTask(thread *ThreadContext) error {
@@ -20,7 +21,12 @@ func acquireMachTask(thread *ThreadContext) error {
 
 // TODO(darwin)
 func (t *ThreadContext) Halt() error {
-	return fmt.Errorf("halt not implemented")
+	var kret C.kern_return_t
+	kret = C.task_suspend(C.task_t(t.os.task))
+	if kret != C.KERN_SUCCESS {
+		return fmt.Errorf("could not suspend thread %d", t.Id)
+	}
+	return nil
 }
 
 func writeMemory(thread *ThreadContext, addr uintptr, data []byte) (int, error) {
